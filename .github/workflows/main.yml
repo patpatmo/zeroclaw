@@ -2,7 +2,7 @@ name: Build ZeroClaw ARMv7 (Static Musl + Embedded Web)
 
 on:
   push:
-    branches: [ main ] # 如果你的默认分支叫 master，请改成 master
+    branches: [ main ] # 如果你的默认分支是 master，请改为 master
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
         with:
           targets: armv7-unknown-linux-musleabihf
 
-      # 3. 安装 cross
+      # 3. 安装 cross (封装了复杂的交叉编译环境)
       - name: Install cross
         run: cargo install cross --version 0.2.5 --locked
 
@@ -36,24 +36,40 @@ jobs:
             --target armv7-unknown-linux-musleabihf \
             --features embedded-web
 
-      # 5. 验证并打包
+      # 5. 安全验证与打包 (核心修复区)
       - name: Verify and Package
         run: |
-          BIN="target/armv7-unknown-linux-musleabihf/release/zeroclaw"
-          if [ ! -f "$BIN" ]; then
-            echo "❌ 编译产物不存在"
+          BIN_DIR="target/armv7-unknown-linux-musleabihf/release"
+          BIN_NAME="zeroclaw"
+          
+          echo "===== 校验二进制文件 ====="
+          # 使用 -f 严格判断是否为普通文件，防止把目录打包进去
+          if [ ! -f "$BIN_DIR/$BIN_NAME" ]; then
+            echo "❌ 编译产物不存在或不是普通文件"
             exit 1
           fi
-          file "$BIN"
-          mkdir -p dist
-          cp "$BIN" dist/
-          tar -czf dist/zeroclaw-armv7-musl-embedded-web.tar.gz -C dist zeroclaw
-          ls -lh dist/
+          file "$BIN_DIR/$BIN_NAME"
+
+          echo "===== 准备打包目录 ====="
+          # 创建一个绝对干净的输出目录
+          mkdir -p release-artifacts
+          
+          echo "===== 执行打包 ====="
+          # -C 直接切换到产物所在目录，仅打包 zeroclaw 这一个文件
+          # 压缩包输出到根目录下的 release-artifacts 中，与源文件物理隔离，绝不可能套娃
+          tar -czvf release-artifacts/zeroclaw-armv7-musl-embedded-web.tar.gz -C "$BIN_DIR" "$BIN_NAME"
+          
+          echo "===== 校验压缩包内容 ====="
+          # 列出压缩包内的文件，确保里面只有 zeroclaw 一个文件
+          tar -tzvf release-artifacts/zeroclaw-armv7-musl-embedded-web.tar.gz
+          
+          echo "===== 最终产物 ====="
+          ls -lh release-artifacts/
 
       # 6. 上传产物
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: zeroclaw-armv7-musl-embedded-web
-          path: dist/zeroclaw-armv7-musl-embedded-web.tar.gz
+          path: release-artifacts/zeroclaw-armv7-musl-embedded-web.tar.gz
           if-no-files-found: error

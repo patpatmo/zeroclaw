@@ -1,1 +1,59 @@
-patpatmo/zeroclaw_v7
+name: Build ZeroClaw ARMv7 (Static Musl + Embedded Web)
+
+on:
+  push:
+    branches: [ main ] # 如果你的默认分支叫 master，请改成 master
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build-armv7-musl:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 1. 构建 Web 仪表板资源
+      - name: Build Web Dashboard
+        run: cargo web build
+
+      # 2. 安装 Rust 和 musl 目标
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-unknown-linux-musleabihf
+
+      # 3. 安装 cross
+      - name: Install cross
+        run: cargo install cross --version 0.2.5 --locked
+
+      # 4. 静态 musl 编译，并启用 embedded-web
+      - name: Build static ARMv7 musl binary
+        run: |
+          cross build --release \
+            --target armv7-unknown-linux-musleabihf \
+            --features embedded-web
+
+      # 5. 验证并打包
+      - name: Verify and Package
+        run: |
+          BIN="target/armv7-unknown-linux-musleabihf/release/zeroclaw"
+          if [ ! -f "$BIN" ]; then
+            echo "❌ 编译产物不存在"
+            exit 1
+          fi
+          file "$BIN"
+          mkdir -p dist
+          cp "$BIN" dist/
+          tar -czf dist/zeroclaw-armv7-musl-embedded-web.tar.gz -C dist zeroclaw
+          ls -lh dist/
+
+      # 6. 上传产物
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeroclaw-armv7-musl-embedded-web
+          path: dist/zeroclaw-armv7-musl-embedded-web.tar.gz
+          if-no-files-found: error

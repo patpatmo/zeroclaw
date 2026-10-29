@@ -1,0 +1,90 @@
+name: Build ZeroClaw armv7 (QQ channel)
+
+# 用途：给 Armbian armv7（onecloud / S905）出一份带 QQ 渠道的二进制。
+# 官方 release 的 armv7 资产缺少 channel-qq，只能用源码带 feature 编。
+#
+# 使用方式：把本文件放到任意仓库的 .github/workflows/build-armv7-qq.yml，
+# Actions -> Build ZeroClaw armv7 (QQ channel) -> Run workflow。
+# 不需要 fork 上游，checkout 步骤会自己拉 zeroclaw-labs/zeroclaw 的 tag。
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "要构建的上游 tag"
+        required: true
+        default: "v0.8.7"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: zeroclaw-labs/zeroclaw
+          ref: ${{ inputs.version }}
+
+      - name: Rust toolchain + armv7 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-unknown-linux-gnueabihf
+
+      - name: armv7 cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
+          arm-linux-gnueabihf-gcc -v 2>&1 | tail -2
+
+      - name: Point cargo at the armv7 linker
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml <<'EOF'
+          [target.armv7-unknown-linux-gnueabihf]
+          linker = "arm-linux-gnueabihf-gcc"
+          EOF
+          cat .cargo/config.toml
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web UI (embedded-web 的输入)
+        run: |
+          cd web
+          npm ci --no-audit --no-fund
+          npm run build
+          test -f dist/index.html && echo "web dist ok"
+
+      - name: Build zeroclaw (channel-qq + embedded-web)
+        env:
+          CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc
+          AR_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-ar
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+        run: |
+          cargo build --release --locked \
+            --target armv7-unknown-linux-gnueabihf \
+            --features "channel-qq,embedded-web"
+
+      - name: Package
+        run: |
+          mkdir -p out
+          cp target/armv7-unknown-linux-gnueabihf/release/zeroclaw out/zeroclaw
+          file out/zeroclaw || true
+          sha256sum out/zeroclaw > out/SHA256SUMS
+          ls -la out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeroclaw-armv7-qq-${{ inputs.version }}
+          path: out/
+          retention-days: 14

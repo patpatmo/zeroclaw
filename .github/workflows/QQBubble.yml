@@ -1,0 +1,87 @@
+name: Build ZeroClaw armv7 (QQ + multi-bubble)
+
+# 给 Armbian armv7（onecloud / S905）出带 QQ 渠道的二进制，
+# 并打上「按空行拆成多条气泡」的补丁。
+#
+# 用法：放到任意仓库 .github/workflows/build-armv7-qq.yml
+# Actions -> 该 workflow -> Run workflow（tag 默认 v0.8.7）
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "要构建的上游 tag"
+        required: true
+        default: "v0.8.7"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: zeroclaw-labs/zeroclaw
+          ref: ${{ inputs.version }}
+
+      - name: Apply QQ multi-bubble patch
+        env:
+          PATCH_B64: "ZGlmZiAtLWdpdCBhL2NyYXRlcy96ZXJvY2xhdy1jaGFubmVscy9zcmMvcXEucnMgYi9jcmF0ZXMvemVyb2NsYXctY2hhbm5lbHMvc3JjL3FxLnJzCmluZGV4IDE0ZmQ2YjEuLjQwNTE4YTEgMTAwNjQ0Ci0tLSBhL2NyYXRlcy96ZXJvY2xhdy1jaGFubmVscy9zcmMvcXEucnMKKysrIGIvY3JhdGVzL3plcm9jbGF3LWNoYW5uZWxzL3NyYy9xcS5ycwpAQCAtMTMzMyw2ICsxMzMzLDI5IEBAIGltcGwgOjp6ZXJvY2xhd19hcGk6OmF0dHJpYnV0aW9uOjpBdHRyaWJ1dGFibGUgZm9yIFFRQ2hhbm5lbCB7CiAgICAgfQogfQogCisvLy8gU3BsaXQgYSByZXBseSBpbnRvIGNoYXQtc2l6ZWQgYnViYmxlcyBvbiBibGFuayBsaW5lcy4KKy8vLworLy8vIFFRIOeahOS4gOadoea2iOaBr+WwseaYr+S4gOS4quawlOazoeOAguecn+S6uuiBiuWkqeS4jeS8muaKiuS4ieWPpeivneWhnui/m+WQjOS4gOS4quawlOazoe+8jAorLy8vIOaJgOS7peWcqOWHuuermeWJjeaMieepuuihjOWIh+WIhu+8jOacgOWkmiA0IOaute+8iFFRIOiiq+WKqOWbnuWkjeWvueWQjOS4gCBtc2dfaWQg5pyJ5qyh5pWw5LiK6ZmQ77yJ77yMCisvLy8g6LaF6L+HIDQg5q615bCx5oqK5L2Z5LiL5YaF5a655ZCI5bm25Yiw5pyA5ZCO5LiA5q6177yM6YG/5YWN5Lii5YaF5a6544CCCitmbiBzcGxpdF9xcV9idWJibGVzKGNvbnRlbnQ6ICZzdHIpIC0+IFZlYzxTdHJpbmc+IHsKKyAgICBsZXQgdHJpbW1lZCA9IGNvbnRlbnQudHJpbSgpOworICAgIGlmIHRyaW1tZWQuaXNfZW1wdHkoKSB7CisgICAgICAgIHJldHVybiBWZWM6Om5ldygpOworICAgIH0KKyAgICBsZXQgbXV0IHBhcnRzOiBWZWM8U3RyaW5nPiA9IHRyaW1tZWQKKyAgICAgICAgLnNwbGl0KCJcblxuIikKKyAgICAgICAgLm1hcChzdHI6OnRyaW0pCisgICAgICAgIC5maWx0ZXIofHB8ICFwLmlzX2VtcHR5KCkpCisgICAgICAgIC5tYXAoc3RyOjp0b19zdHJpbmcpCisgICAgICAgIC5jb2xsZWN0KCk7CisgICAgaWYgcGFydHMubGVuKCkgPiA0IHsKKyAgICAgICAgbGV0IHRhaWw6IFZlYzxTdHJpbmc+ID0gcGFydHMuc3BsaXRfb2ZmKDMpOworICAgICAgICBwYXJ0cy5wdXNoKHRhaWwuam9pbigiXG5cbiIpKTsKKyAgICB9CisgICAgcGFydHMKK30KKwogI1thc3luY190cmFpdF0KIGltcGwgQ2hhbm5lbCBmb3IgUVFDaGFubmVsIHsKICAgICBmbiBuYW1lKCZzZWxmKSAtPiAmc3RyIHsKQEAgLTEzNDMsMTQgKzEzNjYsMjAgQEAgaW1wbCBDaGFubmVsIGZvciBRUUNoYW5uZWwgewogICAgICAgICBsZXQgKGNsZWFuZWRfdGV4dCwgYXR0YWNobWVudHMpID0gcGFyc2VfcXFfYXR0YWNobWVudF9tYXJrZXJzKCZtZXNzYWdlLmNvbnRlbnQpOwogCiAgICAgICAgIGlmIGF0dGFjaG1lbnRzLmlzX2VtcHR5KCkgewotICAgICAgICAgICAgLy8gTm8gbWVkaWEgbWFya2VycyDigJQgc2VuZCBhcyBtYXJrZG93biAob3JpZ2luYWwgcGF0aCkKLSAgICAgICAgICAgIHJldHVybiBzZWxmCi0gICAgICAgICAgICAgICAgLnNlbmRfdGV4dF9tYXJrZG93bigKKyAgICAgICAgICAgIC8vIE5vIG1lZGlhIG1hcmtlcnMg4oCUIHNlbmQgYXMgbWFya2Rvd24sIHNwbGl0IGludG8gY2hhdC1zaXplZCBidWJibGVzLgorICAgICAgICAgICAgbGV0IGJ1YmJsZXMgPSBzcGxpdF9xcV9idWJibGVzKCZtZXNzYWdlLmNvbnRlbnQpOworICAgICAgICAgICAgZm9yIChpZHgsIGJ1YmJsZSkgaW4gYnViYmxlcy5pdGVyKCkuZW51bWVyYXRlKCkgeworICAgICAgICAgICAgICAgIGlmIGlkeCA+IDAgeworICAgICAgICAgICAgICAgICAgICB0b2tpbzo6dGltZTo6c2xlZXAoc3RkOjp0aW1lOjpEdXJhdGlvbjo6ZnJvbV9taWxsaXMoNjAwKSkuYXdhaXQ7CisgICAgICAgICAgICAgICAgfQorICAgICAgICAgICAgICAgIHNlbGYuc2VuZF90ZXh0X21hcmtkb3duKAogICAgICAgICAgICAgICAgICAgICAmbWVzc2FnZS5yZWNpcGllbnQsCi0gICAgICAgICAgICAgICAgICAgICZtZXNzYWdlLmNvbnRlbnQsCisgICAgICAgICAgICAgICAgICAgIGJ1YmJsZSwKICAgICAgICAgICAgICAgICAgICAgbWVzc2FnZS5pbl9yZXBseV90by5hc19kZXJlZigpLAogICAgICAgICAgICAgICAgICkKLSAgICAgICAgICAgICAgICAuYXdhaXQ7CisgICAgICAgICAgICAgICAgLmF3YWl0PzsKKyAgICAgICAgICAgIH0KKyAgICAgICAgICAgIHJldHVybiBPaygoKSk7CiAgICAgICAgIH0KIAogICAgICAgICAvLyBTZW5kIGNsZWFuZWQgdGV4dCBmaXJzdCAoaWYgbm9uLWVtcHR5KQo="
+        run: |
+          echo "$PATCH_B64" | base64 -d > /tmp/qq-split.patch
+          echo "--- patch preview ---"
+          head -20 /tmp/qq-split.patch
+          git apply --verbose /tmp/qq-split.patch
+
+      - name: Rust toolchain + armv7 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: armv7-unknown-linux-gnueabihf
+
+      - name: armv7 cross toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
+          arm-linux-gnueabihf-gcc -v 2>&1 | tail -2
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build web dashboard
+        run: cargo web build
+
+      - name: Build zeroclaw (channel-qq + embedded-web)
+        env:
+          CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc
+          AR_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-ar
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+        run: |
+          cargo build --release --locked \
+            --target armv7-unknown-linux-gnueabihf \
+            --features "channel-qq,embedded-web"
+
+      - name: Package
+        run: |
+          mkdir -p out
+          cp target/armv7-unknown-linux-gnueabihf/release/zeroclaw out/zeroclaw
+          sha256sum out/zeroclaw > out/SHA256SUMS
+          ls -la out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zeroclaw-armv7-qq-bubbles-${{ inputs.version }}
+          path: out/
+          retention-days: 14
